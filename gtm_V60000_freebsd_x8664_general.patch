@@ -1,0 +1,412 @@
+diff -ruN gtm_V60000_linux_x8664_src/CMakeLists.txt gtm_V60000_freebsd_x8664_src/CMakeLists.txt
+--- gtm_V60000_linux_x8664_src/CMakeLists.txt	2012-10-22 17:46:27.000000000 +0200
++++ gtm_V60000_freebsd_x8664_src/CMakeLists.txt	2012-11-09 14:29:14.000000000 +0100
+@@ -15,6 +15,12 @@
+ cmake_minimum_required(VERSION 2.8.5)
+ project(GTM C ASM)
+ 
++SET(CMAKE_SYSTEM_PROCESSOR "x86_64")
++SET(CMAKE_HOST_SYSTEM_PROCESSOR "x86_64")
++SET(CMAKE_CXX_SIZEOF_DATA_PTR "8")
++SET(CMAKE_C_SIZEOF_DATA_PTR "8")
++SET(CMAKE_SIZEOF_VOID_P "8")
++
+ set(version V6.0-000)
+ if("${version}" EQUAL "")
+ 	set(version V9.9-0)
+@@ -25,7 +31,12 @@
+   set(arch "x86_64")
+ endif()
+ 
+-# Choose where to get bootstrap sources.
++
++SET(CMAKE_SYSTEM_PROCESSOR "x86_64")
++SET(CMAKE_HOST_SYSTEM_PROCESSOR "x86_64")
++SET(CMAKE_CXX_SIZEOF_DATA_PTR "8")
++SET(CMAKE_C_SIZEOF_DATA_PTR "8")
++SET(CMAKE_SIZEOF_VOID_P "8")# Choose where to get bootstrap sources.
+ set(GTM_DIST "" CACHE PATH "Existing GT.M Distribution")
+ if(GTM_DIST)
+   # Bootstrap using already-installed mumps.
+@@ -71,11 +82,19 @@
+ set(CMAKE_INCLUDE_FLAG_ASM "-Wa,-I") # gcc -I does not make it to "as"
+ set(CMAKE_C_FLAGS
+   # TODO: Use CMake 2.8.9 POSITION_INDEPENDENT_CODE abstraction for -fPIC in static libs
+-  "${CMAKE_C_FLAGS} -ansi -fsigned-char -fPIC -Wmissing-prototypes")
++  "${CMAKE_C_FLAGS} -ansi -fsigned-char -fPIC -Wmissing-prototypes -L/usr/local/lib")
+ set(CMAKE_C_FLAGS_RELEASE
+   "${CMAKE_C_FLAGS_RELEASE} -fno-defer-pop -fno-strict-aliasing -ffloat-store")
+ add_definitions(
+   #-DNOLIBGTMSHR #gt_cc_option_DBTABLD=-DNOLIBGTMSHR
++  -I/usr/local/include/libelf
++  -I/usr/local/include
++  -D__linux__
++  -D__freebsd__
++  -D__x86_64__
++  -D__amd64__
++  -U__i386
++  -D__BSD_VISIBLE
+   -D_GNU_SOURCE
+   -D_FILE_OFFSET_BITS=64
+   -D_XOPEN_SOURCE=600
+@@ -93,7 +112,7 @@
+ # file name will be ignored.
+ set(gt_src_list)
+ set(gen_xfer_desc 0)
+-if("${CMAKE_SYSTEM_NAME}" MATCHES "Linux")
++if("${CMAKE_SYSTEM_NAME}" MATCHES "FreeBSD")
+   list(APPEND gt_src_list sr_linux)
+   if("${CMAKE_SIZEOF_VOID_P}" EQUAL 4)
+     list(APPEND gt_src_list sr_i386 sr_x86_regs sr_unix_nsb)
+@@ -367,7 +386,7 @@
+ endforeach()
+ 
+ # TODO: find_package or find_library for system libs?
+-target_link_libraries(libmumps -lelf -lncurses -lm -ldl -lpthread -lrt)
++target_link_libraries(libmumps -lelf -lncurses -lm -lpthread -lrt -lexecinfo)
+ 
+ add_executable(mumps ${mumps_SOURCES})
+ target_link_libraries(mumps libmumps)
+diff -ruN gtm_V60000_linux_x8664_src/sr_linux/genexport.csh gtm_V60000_freebsd_x8664_src/sr_linux/genexport.csh
+--- gtm_V60000_linux_x8664_src/sr_linux/genexport.csh	2010-06-04 18:00:05.000000000 +0200
++++ gtm_V60000_freebsd_x8664_src/sr_linux/genexport.csh	2012-11-08 23:46:02.000000000 +0100
+@@ -31,6 +31,8 @@
+ echo "{" >$2
+ echo "global:"	>>$2
+ sed 's/\(.*\)/	\1;/g' $1 >>$2
++echo " environ;" >>$2
++echo " __progname;" >>$2
+ echo "local:"	>>$2
+ echo " *;"	>>$2
+ echo "};"	>>$2
+diff -ruN gtm_V60000_linux_x8664_src/sr_linux/release_name.h gtm_V60000_freebsd_x8664_src/sr_linux/release_name.h
+--- gtm_V60000_linux_x8664_src/sr_linux/release_name.h	2012-08-31 18:01:28.000000000 +0200
++++ gtm_V60000_freebsd_x8664_src/sr_linux/release_name.h	2012-11-08 20:24:39.000000000 +0100
+@@ -9,7 +9,9 @@
+  *								*
+  ****************************************************************/
+ 
+-#ifdef __CYGWIN__
++#ifdef __freebsd__
++#define GTM_RELEASE_NAME  "GT.M V6.0-000 FreeBSD x86_64"
++#elif __CYGWIN__
+ #define GTM_RELEASE_NAME 	"GT.M V6.0-000 CYGWIN x86"
+ #elif defined(__ia64)
+ #define GTM_RELEASE_NAME 	"GT.M V6.0-000 Linux IA64"
+diff -ruN gtm_V60000_linux_x8664_src/sr_port/arch.gtc gtm_V60000_freebsd_x8664_src/sr_port/arch.gtc
+--- gtm_V60000_linux_x8664_src/sr_port/arch.gtc	1970-01-01 01:00:00.000000000 +0100
++++ gtm_V60000_freebsd_x8664_src/sr_port/arch.gtc	2012-11-08 14:48:29.000000000 +0100
+@@ -0,0 +1,12 @@
++#################################################################
++#								#
++#	Copyright 2001 Sanchez Computer Associates, Inc.	#
++#								#
++#	This source code contains the intellectual property	#
++#	of its copyright holder(s), and is made available	#
++#	under a license.  If you do not know the terms of	#
++#	the license, please stop and do not read further.	#
++#								#
++#################################################################
++arch="linux"
++export arch
+diff -ruN gtm_V60000_linux_x8664_src/sr_port/gdeinit.m gtm_V60000_freebsd_x8664_src/sr_port/gdeinit.m
+--- gtm_V60000_linux_x8664_src/sr_port/gdeinit.m	2012-08-08 16:40:42.000000000 +0200
++++ gtm_V60000_freebsd_x8664_src/sr_port/gdeinit.m	2012-11-09 14:47:48.000000000 +0100
+@@ -17,8 +17,8 @@
+ 	s endian("VAX","VMS")=FALSE,glo("VMS")=1024
+ 	s endian("AXP","VMS")=FALSE,endian("AXP","OSF1")=FALSE,glo("VMS")=1024,glo("OSF1")=1024
+ 	s endian("x86","SCO")=FALSE,endian("x86","UWIN")=FALSE,endian("x86","Linux")=FALSE,endian("x86","CYGWIN")=FALSE
+-	s endian("x86_64","Linux")=FALSE
+-	s glo("SCO")=384,glo("UWIN")=1024,glo("Linux")=1024,glo("CYGWIN")=1024
++	s endian("x86_64","Linux")=FALSE,endian("x86_64","FreeBSD")=FALSE
++	s glo("SCO")=384,glo("UWIN")=1024,glo("Linux")=1024,glo("FreeBSD")=1024,glo("CYGWIN")=1024
+ 	s endian("SEQUOIA_SERIES_400","VAX")=TRUE,glo("VAX")=1024
+ 	s endian("HP-PA","HP-UX")=TRUE,glo("HP-UX")=1024
+ 	s endian("IA64","HP-UX")=TRUE,glo("HP-UX")=1024
+diff -ruN gtm_V60000_linux_x8664_src/sr_port/gtm_inet.h gtm_V60000_freebsd_x8664_src/sr_port/gtm_inet.h
+--- gtm_V60000_linux_x8664_src/sr_port/gtm_inet.h	2009-05-22 16:00:02.000000000 +0200
++++ gtm_V60000_freebsd_x8664_src/sr_port/gtm_inet.h	2012-11-08 17:56:17.000000000 +0100
+@@ -15,7 +15,7 @@
+ #ifdef VMS
+ #include <inet/in.h>
+ #endif
+-#if defined(_AIX) || defined (__MVS__)
++#if defined(_AIX) || defined (__MVS__) || defined(__freebsd__)
+ #include <netinet/in.h>
+ #endif
+ 
+diff -ruN gtm_V60000_linux_x8664_src/sr_port/gtm_malloc.h gtm_V60000_freebsd_x8664_src/sr_port/gtm_malloc.h
+--- gtm_V60000_linux_x8664_src/sr_port/gtm_malloc.h	2010-11-09 18:49:53.000000000 +0100
++++ gtm_V60000_freebsd_x8664_src/sr_port/gtm_malloc.h	2012-11-08 19:41:34.000000000 +0100
+@@ -12,6 +12,9 @@
+ #ifndef GTM_MALLOC_H__included
+ #define GTM_MALLOC_H__included
+ 
++/* XXX HACK from Linux */
++#define M_MMAP_MAX          -4
++
+ #define GTM_MEMORY_RESERVE_DEFAULT 64	/* 64K reserve "backpocket-cache" released on out-of-memory error */
+ 
+ typedef GTM64_ONLY(gtm_uint8) NON_GTM64_ONLY(unsigned int) gtm_msize_t;
+diff -ruN gtm_V60000_linux_x8664_src/sr_port/gtm_malloc_src.h gtm_V60000_freebsd_x8664_src/sr_port/gtm_malloc_src.h
+--- gtm_V60000_linux_x8664_src/sr_port/gtm_malloc_src.h	2012-07-13 21:18:02.000000000 +0200
++++ gtm_V60000_freebsd_x8664_src/sr_port/gtm_malloc_src.h	2012-11-08 19:52:02.000000000 +0100
+@@ -49,7 +49,8 @@
+ #include <signal.h>
+ #include <stddef.h>
+ #include <errno.h>
+-#if !defined(VMS) && !defined(__MVS__)
++/* malloc.h was replaced by stdlib.h on FreeBSD */
++#if !defined(VMS) && !defined(__MVS__) && !defined(__freebsd__)
+ #  include <malloc.h>
+ #endif
+ #include "gtm_stdio.h"
+@@ -501,7 +502,7 @@
+ 	   are setup nor (potentially) most of the GTM runtime.
+ 	*/
+ 	assert(MINTWO == TwoTable[0]);
+-#	if defined(__linux__) && !defined(__i386)
++#	if defined(__linux__) && !defined(__i386) && !defined(__freebsd__)
+         /* This will make sure that all the memory allocated using 'malloc' will be in heap and no 'mmap' is used.
+          * This is needed to make sure that the offset calculation that we do at places(que_ent, chache_que, etc..)
+          * using 2 'malloc'ed memory can be hold in an integer. Though this will work without any problem as the
+diff -ruN gtm_V60000_linux_x8664_src/sr_unix/cmidefsp.h gtm_V60000_freebsd_x8664_src/sr_unix/cmidefsp.h
+--- gtm_V60000_linux_x8664_src/sr_unix/cmidefsp.h	2007-09-06 13:41:45.000000000 +0200
++++ gtm_V60000_freebsd_x8664_src/sr_unix/cmidefsp.h	2012-11-08 18:47:56.000000000 +0100
+@@ -90,6 +90,10 @@
+ #include <sys/time.h>
+ #endif
+ 
++#ifdef __freebsd__
++#include <sys/select.h>
++#endif
++
+ struct CLB
+ {
+ 	que_ent cqe;			/* forward/backward links */
+diff -ruN gtm_V60000_linux_x8664_src/sr_unix/do_shmat.c gtm_V60000_freebsd_x8664_src/sr_unix/do_shmat.c
+--- gtm_V60000_linux_x8664_src/sr_unix/do_shmat.c	2004-03-04 21:02:18.000000000 +0100
++++ gtm_V60000_freebsd_x8664_src/sr_unix/do_shmat.c	2012-11-08 19:34:46.000000000 +0100
+@@ -17,7 +17,7 @@
+ #include "mdef.h"
+ 
+ #include <sys/shm.h>
+-#ifndef __MVS__
++#if !defined(__MVS__) && !defined(__freebsd__)
+ #include <sys/sysmacros.h>
+ #endif
+ #include "gtm_stdio.h"
+diff -ruN gtm_V60000_linux_x8664_src/sr_unix/extract_signal_info.c gtm_V60000_freebsd_x8664_src/sr_unix/extract_signal_info.c
+--- gtm_V60000_linux_x8664_src/sr_unix/extract_signal_info.c	2010-04-09 23:01:11.000000000 +0200
++++ gtm_V60000_freebsd_x8664_src/sr_unix/extract_signal_info.c	2012-11-08 19:32:00.000000000 +0100
+@@ -122,9 +122,11 @@
+ 					gtmsi->int_iadr = (caddr_t)context->uc_mcontext.gregs[REG_EIP];
+ #    elif defined(__x86_64__)
+ #      ifndef REG_RIP
++#        define EIP 12      // from Linux: sys reg.h
+ #        define REG_RIP EIP
+ #      endif
+-					gtmsi->int_iadr = (caddr_t)context->uc_mcontext.gregs[REG_RIP];
++          /*XXX:HACK:FIXIT!!!!*/
++					/*gtmsi->int_iadr = (caddr_t)context->uc_mcontext.gregs[REG_RIP];*/
+ #    elif defined(__s390__)
+ 					gtmsi->int_iadr = (caddr_t)context->uc_mcontext.psw.addr;
+ #    else
+diff -ruN gtm_V60000_linux_x8664_src/sr_unix/gtmio.h gtm_V60000_freebsd_x8664_src/sr_unix/gtmio.h
+--- gtm_V60000_linux_x8664_src/sr_unix/gtmio.h	2012-08-20 23:17:09.000000000 +0200
++++ gtm_V60000_freebsd_x8664_src/sr_unix/gtmio.h	2012-11-08 19:33:29.000000000 +0100
+@@ -51,7 +51,7 @@
+ #include "min_max.h"
+ #include "wbox_test_init.h"
+ 
+-#ifdef __linux__
++#if defined(__linux__) && !defined (__freebsd__)
+ #include <sys/vfs.h>
+ #endif
+ 
+@@ -162,6 +162,9 @@
+ #elif defined(__MVS__)
+ #define OPENFILE_SYNC(FNAME, FFLAGS, FDESC)	OPENFILE(FNAME, FFLAGS | O_SYNC, FDESC);
+ #define DIRECTIO_FLAG	0
++#elif defined(__freebsd__)
++#define OPENFILE_SYNC(FNAME, FFLAGS, FDESC)	OPENFILE(FNAME, FFLAGS | O_SYNC, FDESC);
++#define DIRECTIO_FLAG	0
+ #elif defined(__linux__)
+ #define OPENFILE_SYNC(FNAME, FFLAGS, FDESC)	OPENFILE(FNAME, FFLAGS | O_DIRECT | O_DSYNC, FDESC);
+ #define DIRECTIO_FLAG	O_DIRECT
+@@ -172,7 +175,7 @@
+ #error UNSUPPORTED PLATFORM
+ #endif
+ 
+-#if defined( __linux__)
++#if defined( __linux__) && !defined(__freebsd__)
+ /* A special handling was needed for linux due to its inability to lock
+  * over NFS.  The only difference in code is an added check for NFS file
+  * thru fstatfs
+diff -ruN gtm_V60000_linux_x8664_src/sr_unix/gtmsecshr_wrapper.c gtm_V60000_freebsd_x8664_src/sr_unix/gtmsecshr_wrapper.c
+--- gtm_V60000_linux_x8664_src/sr_unix/gtmsecshr_wrapper.c	2012-07-13 21:18:58.000000000 +0200
++++ gtm_V60000_freebsd_x8664_src/sr_unix/gtmsecshr_wrapper.c	2012-11-08 20:11:06.000000000 +0100
+@@ -26,7 +26,7 @@
+ #include "gtm_string.h"
+ #include "gtm_syslog.h"
+ #include "main_pragma.h"
+-#ifndef __MVS__
++#if !defined(__MVS__) && !defined(__freebsd__)
+ #  include <malloc.h>
+ #endif
+ #include <errno.h>
+diff -ruN gtm_V60000_linux_x8664_src/sr_unix/gtm_sem.h gtm_V60000_freebsd_x8664_src/sr_unix/gtm_sem.h
+--- gtm_V60000_linux_x8664_src/sr_unix/gtm_sem.h	2008-08-26 19:10:19.000000000 +0200
++++ gtm_V60000_freebsd_x8664_src/sr_unix/gtm_sem.h	2012-11-08 18:11:39.000000000 +0100
+@@ -14,7 +14,7 @@
+ 
+ #define FTOK_SEM_PER_ID 3
+ 
+-
++#ifndef __freebsd__
+ union   semun {
+ 	int     val;
+ 	struct  semid_ds *buf;
+@@ -24,6 +24,7 @@
+ 	void *__pad;
+ #endif
+ } arg;
++#endif
+ 
+ #endif /* GTM_SEM_INCLUDED */
+ 
+diff -ruN gtm_V60000_linux_x8664_src/sr_unix/gtmsource_get_opt.c gtm_V60000_freebsd_x8664_src/sr_unix/gtmsource_get_opt.c
+--- gtm_V60000_linux_x8664_src/sr_unix/gtmsource_get_opt.c	2012-08-17 20:48:18.000000000 +0200
++++ gtm_V60000_freebsd_x8664_src/sr_unix/gtmsource_get_opt.c	2012-11-08 18:43:54.000000000 +0100
+@@ -17,7 +17,7 @@
+ #include "gtm_inet.h"
+ #include "gtm_string.h"
+ #include "gtm_ctype.h"
+-#if !defined(__MVS__) && !defined(VMS) && !defined(__CYGWIN__)
++#if !defined(__MVS__) && !defined(VMS) && !defined(__CYGWIN__) && !defined(__freebsd__)
+ #include <sys/socketvar.h>
+ #endif
+ #ifdef VMS
+diff -ruN gtm_V60000_linux_x8664_src/sr_unix/gt_timers.c gtm_V60000_freebsd_x8664_src/sr_unix/gt_timers.c
+--- gtm_V60000_linux_x8664_src/sr_unix/gt_timers.c	2012-07-13 21:18:44.000000000 +0200
++++ gtm_V60000_freebsd_x8664_src/sr_unix/gt_timers.c	2012-11-08 19:39:38.000000000 +0100
+@@ -447,6 +447,9 @@
+ STATICFNDEF void sys_settimer (TID tid, ABS_TIME *time_to_expir, void (*handler)())
+ {
+ #	ifdef BSD_TIMER
++  #ifdef __freebsd__
++  #define HZ 100   /* XXX HACK */
++  #endif
+ 	if ((time_to_expir->at_sec == 0) && (time_to_expir->at_usec < (1000000 / HZ)))
+ 	{
+ 		sys_timer.it_value.tv_sec = 0;
+Binary files gtm_V60000_linux_x8664_src/sr_unix/ident.h and gtm_V60000_freebsd_x8664_src/sr_unix/ident.h differ
+diff -ruN gtm_V60000_linux_x8664_src/sr_unix/mdefsp.h gtm_V60000_freebsd_x8664_src/sr_unix/mdefsp.h
+--- gtm_V60000_linux_x8664_src/sr_unix/mdefsp.h	2012-07-13 21:19:02.000000000 +0200
++++ gtm_V60000_freebsd_x8664_src/sr_unix/mdefsp.h	2012-11-11 11:29:13.000000000 +0100
+@@ -121,6 +121,10 @@
+ #define POSIX_MSEM
+ #endif
+ 
++#ifdef __freebsd__
++#define KEY_T_LONG
++#endif
++
+ #ifdef __CYGWIN__
+ #ifdef UNICODE_SUPPORTED_OBEYED
+ #undef UNICODE_SUPPORTED
+diff -ruN gtm_V60000_linux_x8664_src/sr_unix/sig_init.c gtm_V60000_freebsd_x8664_src/sr_unix/sig_init.c
+--- gtm_V60000_linux_x8664_src/sr_unix/sig_init.c	2012-07-13 21:19:12.000000000 +0200
++++ gtm_V60000_freebsd_x8664_src/sr_unix/sig_init.c	2012-11-08 19:04:46.000000000 +0100
+@@ -21,6 +21,10 @@
+ #include "sig_init.h"
+ #include "gtmci_signals.h"
+ 
++#ifdef __freebsd__
++#define SIGCLD SIGCHLD
++#endif
++
+ void	null_handler(int sig);
+ 
+ void sig_init(void (*signal_handler)(), void (*ctrlc_handler)(), void (*suspsig_handler)(), void (*continue_handler)())
+diff -ruN gtm_V60000_linux_x8664_src/sr_unix_cm/gtcm_init.c gtm_V60000_freebsd_x8664_src/sr_unix_cm/gtcm_init.c
+--- gtm_V60000_linux_x8664_src/sr_unix_cm/gtcm_init.c	2012-07-17 01:15:46.000000000 +0200
++++ gtm_V60000_freebsd_x8664_src/sr_unix_cm/gtcm_init.c	2012-11-08 20:06:39.000000000 +0100
+@@ -110,7 +110,11 @@
+ 	}
+ 	else if (0 < pid)
+ 		exit(0);
++  #ifdef __freebsd__
++  (void) setpgrp (0, 0);
++  #else
+ 	(void) setpgrp();
++  #endif
+ #	endif
+ 	/* Initialize logging */
+ 	omi_pid = getpid();
+diff -ruN gtm_V60000_linux_x8664_src/sr_unix_cm/omi_prc_conn.c gtm_V60000_freebsd_x8664_src/sr_unix_cm/omi_prc_conn.c
+--- gtm_V60000_linux_x8664_src/sr_unix_cm/omi_prc_conn.c	2012-01-04 20:42:53.000000000 +0100
++++ gtm_V60000_freebsd_x8664_src/sr_unix_cm/omi_prc_conn.c	2012-11-08 20:10:37.000000000 +0100
+@@ -24,7 +24,7 @@
+ 
+ #include "gtm_string.h"
+ #include "gtm_stdio.h"
+-#ifndef __MVS__
++#if !defined(__MVS__) && !defined(__freebsd__)
+ #include <crypt.h> /* for crypt(), actually it is in unistd.h */
+ #endif
+ #include "gtm_unistd.h" /* for crypt() */
+diff -ruN gtm_V60000_linux_x8664_src/sr_unix_gnp/gtcm_gnp_server.c gtm_V60000_freebsd_x8664_src/sr_unix_gnp/gtcm_gnp_server.c
+--- gtm_V60000_linux_x8664_src/sr_unix_gnp/gtcm_gnp_server.c	2012-08-11 00:58:35.000000000 +0200
++++ gtm_V60000_freebsd_x8664_src/sr_unix_gnp/gtcm_gnp_server.c	2012-11-08 20:05:54.000000000 +0100
+@@ -455,7 +455,11 @@
+                 else if (0 < pid)
+                         exit(0);
+ 		getjobnum();
++                #ifdef __freebsd__
++                (void) setpgrp (0, 0);
++                #else
+                 (void) setpgrp();
++                #endif
+         }
+ 	/* Write argv and the process id for ease of admin */
+ 	GET_CUR_TIME;
+diff -ruN gtm_V60000_linux_x8664_src/sr_x86_64/dm_start.s gtm_V60000_freebsd_x8664_src/sr_x86_64/dm_start.s
+--- gtm_V60000_linux_x8664_src/sr_x86_64/dm_start.s	2010-01-11 18:03:43.000000000 +0100
++++ gtm_V60000_freebsd_x8664_src/sr_x86_64/dm_start.s	2012-11-08 19:58:22.000000000 +0100
+@@ -32,7 +32,7 @@
+ 	.text
+ .extern	mdb_condition_handler
+ .extern	op_unwind
+-.extern __sigsetjmp
++.extern sigsetjmp
+ #       setjmp is really __sigsetjmp(env,0)
+ 
+ 
+diff -ruN gtm_V60000_linux_x8664_src/sr_x86_64/error.si gtm_V60000_freebsd_x8664_src/sr_x86_64/error.si
+--- gtm_V60000_linux_x8664_src/sr_x86_64/error.si	2012-08-09 22:02:25.000000000 +0200
++++ gtm_V60000_freebsd_x8664_src/sr_x86_64/error.si	2012-11-08 19:58:26.000000000 +0100
+@@ -37,7 +37,7 @@
+ 	addq	$chnd_jmp,%rax			# setjmp(ctxt->jmp)
+ 	movq	$0,%rsi
+ 	movq	%rax,%rdi
+-	call 	__sigsetjmp@PLT
++	call 	sigsetjmp@PLT
+ 	incl  	%eax
+ 	jne  	\label
+ 	REVERT
+diff -ruN gtm_V60000_linux_x8664_src/sr_x86_64/obj_filesp.c gtm_V60000_freebsd_x8664_src/sr_x86_64/obj_filesp.c
+--- gtm_V60000_linux_x8664_src/sr_x86_64/obj_filesp.c	2012-10-25 18:02:16.000000000 +0200
++++ gtm_V60000_freebsd_x8664_src/sr_x86_64/obj_filesp.c	2012-11-09 14:48:03.000000000 +0100
+@@ -242,7 +242,11 @@
+         ehdr->e_ident[EI_OSABI] = ELFOSABI_HPUX;
+ #else
+         ehdr->e_ident[EI_DATA] = ELFDATA2LSB;
++ #ifdef __freebsd__
++        ehdr->e_ident[EI_OSABI] = ELFOSABI_FREEBSD;
++ #else
+         ehdr->e_ident[EI_OSABI] = ELFOSABI_LINUX;
++ #endif
+ #endif /* __hpux */
+         ehdr->e_ident[EI_ABIVERSION] = EV_CURRENT;
+         ehdr->e_machine = EM_X86_64;
